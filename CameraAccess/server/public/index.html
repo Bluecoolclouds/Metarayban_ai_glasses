@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VisionClaw</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000; color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100vh; overflow: hidden;
+    }
+
+    /* ── Video ─────────────────────────────────────────── */
+    #video-container {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #0a0a0a;
+    }
+    #fallback-video { width: 100%; height: 100%; object-fit: contain; }
+    #pip-container { position: fixed; inset: 0; background: #000; display: none; }
+    #main-video { width: 100%; height: 100%; object-fit: contain; }
+    #pip-video {
+      position: absolute; top: 72px; right: 16px;
+      width: 150px; height: 200px; object-fit: cover;
+      border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.2);
+      cursor: pointer; z-index: 5;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      background: #111;
+    }
+    @media (max-width: 600px) {
+      #pip-video { width: 100px; height: 133px; top: 68px; right: 12px; }
+    }
+
+    /* ── Top bar ────────────────────────────────────────── */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 52px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+      z-index: 20; pointer-events: none;
+    }
+    #topbar-left { display: flex; align-items: center; gap: 10px; pointer-events: all; }
+    #topbar-right { display: flex; align-items: center; gap: 8px; pointer-events: all; }
+
+    /* Status pill */
+    #status {
+      padding: 5px 12px; border-radius: 20px; font-size: 12px;
+      font-weight: 600; letter-spacing: 0.3px;
+    }
+    .status-waiting  { background: rgba(255,204,0,0.18); color: #ffcc00; border: 1px solid rgba(255,204,0,0.3); }
+    .status-connected{ background: rgba(48,209,88,0.18); color: #30d158; border: 1px solid rgba(48,209,88,0.3); }
+    .status-disconnected { background: rgba(255,59,48,0.18); color: #ff3b30; border: 1px solid rgba(255,59,48,0.3); }
+    .status-idle { background: rgba(255,255,255,0.08); color: #999; border: 1px solid rgba(255,255,255,0.1); }
+
+    /* Live badge */
+    #live-badge {
+      display: none;
+      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.5px; background: rgba(255,59,48,0.2); color: #ff3b30;
+      border: 1px solid rgba(255,59,48,0.4);
+    }
+    #live-badge.visible { display: inline-flex; align-items: center; gap: 5px; }
+    #live-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    /* Buttons */
+    .btn {
+      padding: 7px 14px; font-size: 13px; border-radius: 9px;
+      border: 1px solid rgba(255,255,255,0.12); cursor: pointer; font-weight: 500;
+      background: rgba(28,28,28,0.88); color: #fff;
+      backdrop-filter: blur(12px); transition: background 0.18s, opacity 0.18s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { background: rgba(50,50,50,0.9); }
+    .btn:active { opacity: 0.7; }
+    .btn .badge {
+      background: #9146ff; color: #fff; font-size: 10px; font-weight: 700;
+      padding: 1px 5px; border-radius: 6px; min-width: 16px; text-align: center;
+      display: none;
+    }
+    #disconnect-btn { background: rgba(255,59,48,0.15); border-color: rgba(255,59,48,0.3); color: #ff3b30; display: none; }
+    #disconnect-btn:hover { background: rgba(255,59,48,0.25); }
+
+    /* ── Idle / waiting screen ──────────────────────────── */
+    #idle-screen {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 10;
+      gap: 12px;
+    }
+    #idle-screen h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+    #idle-screen p { color: #666; font-size: 14px; }
+    #idle-screen.hidden { display: none; }
+
+    /* ── Twitch Chat Panel (left) ───────────────────────── */
+    #twitch-chat-panel {
+      position: fixed; top: 0; left: 0; width: 340px; height: 100vh;
+      background: rgba(12,12,12,0.94); backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255,255,255,0.07);
+      display: flex; flex-direction: column; z-index: 30;
+      transform: translateX(-100%); transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+    }
+    #twitch-chat-panel.open { transform: translateX(0); }
+    #tc-header {
+      padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    #tc-header h3 {
+      font-size: 14px; font-weight: 600; color: #fff;
+      display: flex; align-items: center; gap: 8px;
+    }
+    #tc-header .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #444; display: inline-block;
+    }
+    #tc-header .dot.active { background: #9146ff; animation: pulse 2s infinite; }
+    #tc-close {
+      background: none; border: none; color: #666; font-size: 20px;
+      cursor: pointer; padding: 4px 8px; border-radius: 6px; line-height: 1;
+    }
+    #tc-close:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    #tc-toolbar {
+      padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+    }
+    #tc-channel-input {
+      flex: 1; padding: 7px 10px; font-size: 13px; border-radius: 7px;
+      border: 1px solid #2a2a2a; background: #1a1a1a; color: #fff;
+      font-family: inherit; outline: none;
+    }
+    #tc-channel-input:focus { border-color: #9146ff; }
+    #tc-channel-input::placeholder { color: #444; }
+    #tc-connect-btn {
+      padding: 7px 13px; font-size: 12px; border-radius: 7px;
+      border: none; cursor: pointer; font-weight: 600;
+      background: #9146ff; color: #fff; flex-shrink: 0;
+    }
+    #tc-connect-btn.connected { background: #ff3b30; }
+    #tc-tts-btn {
+      padding: 7px 13px; font-size: 12px; border-radius: 7px;
+      border: 1px solid #333; cursor: pointer; font-weight: 600;
+      background: #1a1a1a; color: #888; flex-shrink: 0;
+    }
+    #tc-tts-btn.active { background: rgba(48,209,88,0.15); color: #30d158; border-color: rgba(48,209,88,0.4); }
+    #tc-messages {
+      flex: 1; overflow-y: auto; padding: 10px 14px;
+      display: flex; flex-direction: column; gap: 3px;
+      scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+    }
+    #tc-messages::-webkit-scrollbar { width: 4px; }
+    #tc-messages::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+    .tc-msg { font-size: 13px; line-height: 1.45; word-wrap: break-word; padding: 2px 0; }
+    .tc-msg .tc-user { font-weight: 700; margin-right: 4px; }
+    .tc-msg .tc-text { color: #ccc; }
+    .tc-empty { text-align: center; color: #444; font-size: 13px; margin-top: 40px; padding: 0 20px; }
+
+    @media (max-width: 600px) {
+      #twitch-chat-panel { width: 100%; }
+    }
+
+    /* ── Browser Live Panel ─────────────────────────────── */
+    #browser-panel {
+      position: fixed; inset: 0; z-index: 40;
+      background: rgba(0,0,0,0.96); backdrop-filter: blur(20px);
+      display: flex; flex-direction: column;
+      transform: translateY(100%); transition: transform 0.32s cubic-bezier(.4,0,.2,1);
+    }
+    #browser-panel.open { transform: translateY(0); }
+    #browser-panel-header {
+      padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    #browser-panel-title {
+      font-size: 13px; font-weight: 600; color: #fff;
+      display: flex; align-items: center; gap: 8px;
+    }
+    #browser-pulse {
+      width: 7px; height: 7px; border-radius: 50%; background: #444; display: inline-block;
+      transition: background 0.3s;
+    }
+    #browser-pulse.active { background: #30d158; animation: pulse 1.5s infinite; }
+    #browser-status-text {
+      font-size: 12px; color: #888; font-weight: 400;
+      max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #browser-panel-close {
+      background: none; border: none; color: #666; font-size: 22px;
+      cursor: pointer; padding: 4px 8px; border-radius: 6px; line-height: 1;
+    }
+    #browser-panel-close:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    #browser-frame-container {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; padding: 12px;
+    }
+    #browser-frame-img {
+      max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.08);
+      display: none;
+    }
+    #browser-empty {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      color: #444; text-align: center;
+    }
+    #browser-empty svg { opacity: 0.3; }
+    #browser-empty p { font-size: 14px; }
+    #browser-empty small { font-size: 12px; color: #333; }
+    #browser-btn.active {
+      background: rgba(48,209,88,0.15); border-color: rgba(48,209,88,0.4); color: #30d158;
+    }
+  </style>
+</head>
+<body>
+  <div id="video-container">
+    <video id="fallback-video" autoplay playsinline></video>
+    <div id="pip-container">
+      <video id="main-video" autoplay playsinline></video>
+      <video id="pip-video" autoplay playsinline muted onclick="swapVideos()"></video>
+    </div>
+  </div>
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <div id="topbar-left">
+      <div id="status" class="status-idle">Not Connected</div>
+      <div id="live-badge"><span id="live-dot"></span>LIVE</div>
+    </div>
+    <div id="topbar-right">
+      <button class="btn" id="browser-btn" onclick="toggleBrowserPanel()" title="OpenClaw Browser">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        Browser
+      </button>
+      <button class="btn" id="tc-toggle" onclick="toggleTwitchChat()">
+        Twitch Chat <span class="badge" id="tc-badge">0</span>
+      </button>
+      <button class="btn" id="upload-btn" onclick="toggleUploadModal()" title="Загрузить файл лапе">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Файл
+      </button>
+      <button class="btn" id="disconnect-btn" onclick="disconnectSession()">Disconnect</button>
+      <a href="/terminal.html" class="btn" id="terminal-btn" title="Терминал" style="text-decoration:none;" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="4 17 10 11 4 5"></polyline>
+          <line x1="12" y1="19" x2="20" y2="19"></line>
+        </svg>
+      </a>
+      <a href="/settings.html" class="btn" id="settings-btn" title="AI Settings" style="text-decoration:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Idle / waiting screen -->
+  <div id="idle-screen">
+    <h1>VisionClaw</h1>
+    <p id="idle-msg">Waiting for device to connect...</p>
+  </div>
+
+  <!-- Browser Live Panel (full-screen slide-up) -->
+  <div id="browser-panel">
+    <div id="browser-panel-header">
+      <div id="browser-panel-title">
+        <span id="browser-pulse"></span>
+        OpenClaw Browser
+        <span id="browser-status-text">Нет активной сессии</span>
+      </div>
+      <button id="browser-panel-close" onclick="toggleBrowserPanel()">&times;</button>
+    </div>
+    <div id="browser-frame-container">
+      <img id="browser-frame-img" alt="Browser screenshot">
+      <div id="browser-empty">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        <p>Браузер не активен</p>
+        <small>Попроси OpenClaw открыть сайт — скриншоты появятся здесь</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Twitch Chat Panel (left slide-in) -->
+  <div id="twitch-chat-panel">
+    <div id="tc-header">
+      <h3><span class="dot" id="tc-dot"></span> Twitch Chat</h3>
+      <button id="tc-close" onclick="toggleTwitchChat()">&times;</button>
+    </div>
+    <div id="tc-toolbar">
+      <input id="tc-channel-input" placeholder="Channel name" spellcheck="false">
+      <button id="tc-connect-btn" onclick="toggleTwitchIRC()">Join</button>
+      <button id="tc-tts-btn" onclick="toggleTTS()">TTS</button>
+    </div>
+    <div id="tc-messages">
+      <div class="tc-empty">Enter a channel name<br>and press Join</div>
+    </div>
+  </div>
+
+  <!-- Upload Modal -->
+  <div id="upload-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+    <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:24px;width:360px;max-width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.8);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <span style="font-weight:600;font-size:15px;">Загрузить файл лапе</span>
+        <button onclick="toggleUploadModal()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;line-height:1;">&times;</button>
+      </div>
+      <div id="upload-drop" onclick="document.getElementById('upload-file-input').click()"
+        style="border:2px dashed rgba(255,255,255,0.2);border-radius:10px;padding:32px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s;margin-bottom:14px;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 10px;display:block;">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <div style="color:rgba(255,255,255,0.6);font-size:13px;">Перетащите файл сюда или нажмите</div>
+        <div style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:4px;">Любой размер — до 2 ГБ</div>
+      </div>
+      <input type="file" id="upload-file-input" style="display:none;" onchange="startUpload(this.files[0])">
+      <div id="upload-status" style="display:none;margin-bottom:12px;">
+        <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:6px;" id="upload-status-text">Загрузка...</div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:4px;height:6px;overflow:hidden;">
+          <div id="upload-progress-bar" style="background:#4cd964;height:100%;width:0%;transition:width 0.2s;border-radius:4px;"></div>
+        </div>
+      </div>
+      <div id="upload-result" style="display:none;font-size:12px;padding:10px;border-radius:8px;"></div>
+    </div>
+  </div>
+
+  <script>
+    let ws, pc, localStream;
+    let localVideoStream = null;
+    let pendingCandidates = [];
+    let isSwapped = false;
+    let remoteStream = null;
+    let isConnected = false;
+
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${location.host}`;
+
+    async function loadConfig() {
+      try {
+        const resp = await fetch('/api/config');
+        const config = await resp.json();
+        if (config.twitchChannel) {
+          document.getElementById('tc-channel-input').value = config.twitchChannel;
+          setTimeout(() => connectTwitchIRC(), 500);
+        }
+      } catch (e) {}
+    }
+
+    let autoConnectInterval = null;
+
+    async function checkForRooms() {
+      if (isConnected) return;
+      try {
+        const resp = await fetch('/api/rooms');
+        const data = await resp.json();
+        console.log('Polling rooms:', JSON.stringify(data));
+        if (data.rooms && data.rooms.length > 0 && !isConnected) {
+          console.log('Found room, connecting to:', data.rooms[0]);
+          stopAutoConnect();
+          connectToRoom(data.rooms[0]);
+        }
+      } catch (e) {
+        console.log('Room poll error:', e.message);
+      }
+    }
+
+    function startAutoConnect() {
+      if (autoConnectInterval || isConnected) return;
+      showIdle('Waiting for device to connect...');
+      setStatus('Waiting...', 'waiting');
+      checkForRooms();
+      autoConnectInterval = setInterval(checkForRooms, 2000);
+    }
+
+    function stopAutoConnect() {
+      if (autoConnectInterval) { clearInterval(autoConnectInterval); autoConnectInterval = null; }
+    }
+
+    function connectToRoom(code) {
+      stopAutoConnect();
+      if (ws) { ws.onclose = null; ws.close(); }
+      if (pc) { pc.close(); pc = null; }
+      isConnected = false;
+
+      ws = new WebSocket(wsUrl);
+      const sock = ws;
+      ws.onopen = () => {
+        if (sock !== ws) return;
+        sock.send(JSON.stringify({ type: 'join', room: code }));
+        setStatus('Joining...', 'waiting');
+      };
+      ws.onmessage = (e) => {
+        if (sock !== ws) return;
+        handleSignaling(JSON.parse(e.data));
+      };
+      ws.onclose = () => {
+        if (sock !== ws) return;
+        isConnected = false;
+        setStatus('Disconnected', 'disconnected');
+        showControls(false);
+        hideLive();
+        startAutoConnect();
+      };
+      ws.onerror = () => {
+        if (sock !== ws) return;
+        setStatus('Connection error', 'disconnected');
+      };
+    }
+
+    async function handleSignaling(msg) {
+      switch (msg.type) {
+        case 'room_joined':
+          isConnected = true;
+          setStatus('Waiting for stream...', 'waiting');
+          showIdle('Connected. Waiting for stream...');
+          break;
+
+        case 'offer':
+          hideIdle();
+          pendingCandidates = [];
+          await setupPeerConnection();
+          await pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp });
+          for (const c of pendingCandidates) await pc.addIceCandidate(c);
+          pendingCandidates = [];
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          ws.send(JSON.stringify({ type: 'answer', sdp: answer.sdp }));
+          break;
+
+        case 'candidate': {
+          const candidate = { candidate: msg.candidate, sdpMid: msg.sdpMid, sdpMLineIndex: msg.sdpMLineIndex };
+          if (pc && pc.remoteDescription) await pc.addIceCandidate(candidate);
+          else pendingCandidates.push(candidate);
+          break;
+        }
+
+        case 'peer_left':
+          if (pc) { pc.close(); pc = null; }
+          resetVideoElements();
+          stopCameraFrames();
+          setStatus('Waiting for reconnect...', 'waiting');
+          showIdle('Device disconnected. Waiting for reconnect...');
+          break;
+
+        case 'error':
+          setStatus(msg.message, 'disconnected');
+          isConnected = false;
+          showIdle('Waiting for device to connect...');
+          startAutoConnect();
+          break;
+
+        case 'twitch_started':
+        case 'twitch_already_started':
+          showLive();
+          break;
+
+        case 'twitch_stopped':
+          hideLive();
+          break;
+
+        case 'camera_frame':
+          showCameraFrame(msg.data);
+          break;
+
+        case 'tts_state':
+          twitchTTSEnabled = msg.enabled;
+          document.getElementById('tc-tts-btn').classList.toggle('active', twitchTTSEnabled);
+          document.getElementById('tc-tts-btn').textContent = twitchTTSEnabled ? 'TTS ON' : 'TTS';
+          break;
+
+        case 'browser_frame':
+          handleBrowserFrame(msg);
+          break;
+      }
+    }
+
+    async function setupPeerConnection() {
+      if (pc) { pc.close(); pc = null; }
+
+      let iceServers = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ];
+      try {
+        const resp = await fetch('/api/turn');
+        const creds = await resp.json();
+        if (creds && creds.iceServers) {
+          for (const s of creds.iceServers) {
+            iceServers.push({ urls: s.urls, username: s.username, credential: s.credential });
+          }
+          console.log('TURN credentials loaded:', creds.iceServers.length, 'servers');
+        } else if (creds && creds.urls) {
+          iceServers.push({ urls: creds.urls, username: creds.username, credential: creds.credential });
+        }
+      } catch (e) {
+        console.log('No TURN credentials, STUN only:', e.message);
+      }
+
+      pc = new RTCPeerConnection({ iceServers, iceCandidatePoolSize: 2 });
+      localStream = null;
+      localVideoStream = null;
+
+      pc.ontrack = (e) => {
+        if (e.streams && e.streams[0]) {
+          remoteStream = e.streams[0];
+          stopCameraFrames();
+          showVideoLayout();
+        }
+      };
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          ws.send(JSON.stringify({
+            type: 'candidate',
+            candidate: e.candidate.candidate,
+            sdpMid: e.candidate.sdpMid,
+            sdpMLineIndex: e.candidate.sdpMLineIndex
+          }));
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('ICE state:', pc.iceConnectionState);
+        switch (pc.iceConnectionState) {
+          case 'connected':
+          case 'completed':
+            setStatus('Live', 'connected');
+            showControls(true);
+            if (remoteStream) showVideoLayout();
+            break;
+          case 'disconnected':
+            setStatus('Reconnecting...', 'waiting');
+            setTimeout(() => {
+              if (pc && pc.iceConnectionState === 'disconnected') disconnectSession();
+            }, 5000);
+            break;
+          case 'failed':
+            remoteStream = null;
+            setStatus('Connection failed', 'disconnected');
+            setTimeout(() => disconnectSession(), 1000);
+            break;
+          case 'closed':
+            setStatus('Disconnected', 'disconnected');
+            showControls(false);
+            break;
+        }
+      };
+    }
+
+    function showVideoLayout() {
+      if (localVideoStream && remoteStream) {
+        document.getElementById('fallback-video').style.display = 'none';
+        document.getElementById('pip-container').style.display = 'block';
+        const mainVideo = document.getElementById('main-video');
+        const pipVideo = document.getElementById('pip-video');
+        mainVideo.srcObject = remoteStream; mainVideo.muted = false;
+        pipVideo.srcObject = localVideoStream; pipVideo.muted = true;
+        pipVideo.style.transform = 'scaleX(-1)';
+        isSwapped = false;
+      } else if (remoteStream) {
+        document.getElementById('pip-container').style.display = 'none';
+        document.getElementById('fallback-video').style.display = 'block';
+        document.getElementById('fallback-video').srcObject = remoteStream;
+      }
+    }
+
+    function swapVideos() {
+      const mainVideo = document.getElementById('main-video');
+      const pipVideo = document.getElementById('pip-video');
+      if (isSwapped) {
+        mainVideo.srcObject = remoteStream; mainVideo.muted = false; mainVideo.style.transform = '';
+        pipVideo.srcObject = localVideoStream; pipVideo.muted = true; pipVideo.style.transform = 'scaleX(-1)';
+      } else {
+        mainVideo.srcObject = localVideoStream; mainVideo.muted = true; mainVideo.style.transform = 'scaleX(-1)';
+        pipVideo.srcObject = remoteStream; pipVideo.muted = false; pipVideo.style.transform = '';
+      }
+      isSwapped = !isSwapped;
+    }
+
+    function resetVideoElements() {
+      document.getElementById('fallback-video').srcObject = null;
+      document.getElementById('main-video').srcObject = null;
+      document.getElementById('pip-video').srcObject = null;
+      document.getElementById('pip-container').style.display = 'none';
+      document.getElementById('fallback-video').style.display = 'block';
+      remoteStream = null;
+      isSwapped = false;
+    }
+
+    let cameraFrameActive = false;
+    let cameraFrameImg = null;
+
+    function showCameraFrame(b64data) {
+      if (remoteStream) return;
+      if (!cameraFrameActive) {
+        cameraFrameActive = true;
+        hideIdle();
+        setStatus('Live (camera)', 'connected');
+        showControls(true);
+      }
+      const fallbackVideo = document.getElementById('fallback-video');
+      fallbackVideo.style.display = 'none';
+      document.getElementById('pip-container').style.display = 'none';
+
+      if (!cameraFrameImg) {
+        cameraFrameImg = document.createElement('img');
+        cameraFrameImg.id = 'camera-frame-img';
+        cameraFrameImg.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+        document.getElementById('video-container').appendChild(cameraFrameImg);
+      }
+      cameraFrameImg.src = 'data:image/jpeg;base64,' + b64data;
+    }
+
+    function stopCameraFrames() {
+      cameraFrameActive = false;
+      if (cameraFrameImg) {
+        cameraFrameImg.remove();
+        cameraFrameImg = null;
+      }
+    }
+
+    function disconnectSession() {
+      if (pc) { pc.close(); pc = null; }
+      if (ws) { ws.close(); ws = null; }
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; localVideoStream = null; }
+      resetVideoElements();
+      stopCameraFrames();
+      setStatus('Disconnected', 'disconnected');
+      showControls(false);
+      hideLive();
+      showIdle('Waiting for device to connect...');
+      startAutoConnect();
+    }
+
+    function showControls(visible) {
+      document.getElementById('disconnect-btn').style.display = visible ? 'inline-flex' : 'none';
+    }
+
+    function showIdle(msg) {
+      document.getElementById('idle-screen').classList.remove('hidden');
+      document.getElementById('idle-msg').textContent = msg;
+    }
+
+    function hideIdle() {
+      document.getElementById('idle-screen').classList.add('hidden');
+    }
+
+    function showLive() {
+      document.getElementById('live-badge').classList.add('visible');
+    }
+
+    function hideLive() {
+      document.getElementById('live-badge').classList.remove('visible');
+    }
+
+    function setStatus(text, cls) {
+      const el = document.getElementById('status');
+      el.textContent = text;
+      el.className = 'status-' + cls;
+    }
+
+    function escapeHtml(text) {
+      const d = document.createElement('div');
+      d.textContent = text;
+      return d.innerHTML;
+    }
+
+    // ── Twitch Chat (IRC) ─────────────────────────────────
+    let twitchIRC = null;
+    let twitchChatOpen = false;
+    let twitchChatUnread = 0;
+    let twitchTTSEnabled = false;
+    let twitchIRCConnected = false;
+    let ttsQueue = [];
+    let ttsSpeaking = false;
+    let lastTTSUser = null;
+
+    // ── Browser Panel ──────────────────────────────────────
+    let browserPanelOpen = false;
+    let browserActive = false;
+    let browserInactivateTimer = null;
+
+    function toggleBrowserPanel() {
+      browserPanelOpen = !browserPanelOpen;
+      document.getElementById('browser-panel').classList.toggle('open', browserPanelOpen);
+    }
+
+    function handleBrowserFrame(msg) {
+      const img = document.getElementById('browser-frame-img');
+      const empty = document.getElementById('browser-empty');
+      const pulse = document.getElementById('browser-pulse');
+      const statusEl = document.getElementById('browser-status-text');
+      const btn = document.getElementById('browser-btn');
+
+      if (msg.status) statusEl.textContent = msg.status;
+
+      if (msg.image) {
+        img.src = 'data:image/jpeg;base64,' + msg.image;
+        img.style.display = 'block';
+        empty.style.display = 'none';
+        pulse.classList.add('active');
+        btn.classList.add('active');
+        browserActive = true;
+        clearTimeout(browserInactivateTimer);
+        browserInactivateTimer = setTimeout(() => {
+          pulse.classList.remove('active');
+          btn.classList.remove('active');
+          browserActive = false;
+        }, 10000);
+      } else if (msg.status && msg.status.includes('закрыт')) {
+        pulse.classList.remove('active');
+        btn.classList.remove('active');
+        browserActive = false;
+      } else if (msg.status) {
+        pulse.classList.add('active');
+        btn.classList.add('active');
+        clearTimeout(browserInactivateTimer);
+        browserInactivateTimer = setTimeout(() => {
+          pulse.classList.remove('active');
+          btn.classList.remove('active');
+        }, 15000);
+      }
+    }
+
+    function toggleTwitchChat() {
+      twitchChatOpen = !twitchChatOpen;
+      document.getElementById('twitch-chat-panel').classList.toggle('open', twitchChatOpen);
+      if (twitchChatOpen) { twitchChatUnread = 0; updateTCBadge(); }
+    }
+
+    function updateTCBadge() {
+      const badge = document.getElementById('tc-badge');
+      if (twitchChatUnread > 0) {
+        badge.textContent = twitchChatUnread > 99 ? '99+' : twitchChatUnread;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function toggleTwitchIRC() {
+      if (twitchIRCConnected) disconnectTwitchIRC(); else connectTwitchIRC();
+    }
+
+    function connectTwitchIRC() {
+      const channel = document.getElementById('tc-channel-input').value.trim().toLowerCase();
+      if (!channel) return;
+      if (twitchIRC) { twitchIRC.close(); twitchIRC = null; }
+
+      twitchIRC = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+      twitchIRC.onopen = () => {
+        const nick = 'justinfan' + Math.floor(Math.random() * 99999);
+        twitchIRC.send('CAP REQ :twitch.tv/tags');
+        twitchIRC.send('PASS SCHMOOPIIE');
+        twitchIRC.send('NICK ' + nick);
+        twitchIRC.send('JOIN #' + channel);
+      };
+      twitchIRC.onmessage = (e) => {
+        const lines = e.data.split('\r\n');
+        for (const line of lines) {
+          if (!line) continue;
+          if (line.startsWith('PING')) { twitchIRC.send('PONG :tmi.twitch.tv'); continue; }
+          if (line.includes('366')) {
+            twitchIRCConnected = true;
+            document.getElementById('tc-connect-btn').textContent = 'Leave';
+            document.getElementById('tc-connect-btn').classList.add('connected');
+            document.getElementById('tc-channel-input').disabled = true;
+            document.getElementById('tc-dot').classList.add('active');
+            clearTCMessages();
+            addTCSystem('Connected to #' + channel);
+            continue;
+          }
+          if (line.includes('PRIVMSG')) parseTwitchMessage(line);
+        }
+      };
+      twitchIRC.onclose = () => {
+        twitchIRCConnected = false;
+        document.getElementById('tc-connect-btn').textContent = 'Join';
+        document.getElementById('tc-connect-btn').classList.remove('connected');
+        document.getElementById('tc-channel-input').disabled = false;
+        document.getElementById('tc-dot').classList.remove('active');
+      };
+      twitchIRC.onerror = () => { addTCSystem('Connection error'); };
+    }
+
+    function disconnectTwitchIRC() {
+      if (twitchIRC) { twitchIRC.close(); twitchIRC = null; }
+      twitchIRCConnected = false;
+      lastTTSUser = null;
+      document.getElementById('tc-connect-btn').textContent = 'Join';
+      document.getElementById('tc-connect-btn').classList.remove('connected');
+      document.getElementById('tc-channel-input').disabled = false;
+      document.getElementById('tc-dot').classList.remove('active');
+      addTCSystem('Disconnected');
+    }
+
+    function parseTwitchMessage(raw) {
+      let displayName = '', color = '', message = '';
+      const tagMatch = raw.match(/^@(.+?)\s/);
+      if (tagMatch) {
+        const tags = {};
+        tagMatch[1].split(';').forEach(t => { const [k, v] = t.split('='); tags[k] = v || ''; });
+        displayName = tags['display-name'] || '';
+        color = tags['color'] || '';
+      }
+      const privmsgIdx = raw.indexOf('PRIVMSG');
+      if (privmsgIdx !== -1) {
+        const colonIdx = raw.indexOf(':', privmsgIdx);
+        if (colonIdx !== -1) message = raw.substring(colonIdx + 1);
+      }
+      if (!displayName) { const m = raw.match(/:(\w+)!/); if (m) displayName = m[1]; }
+      if (!displayName || !message) return;
+      addTCMessage(displayName, color, message);
+      if (twitchTTSEnabled) queueTTS(displayName, message);
+    }
+
+    function addTCMessage(user, color, text) {
+      const container = document.getElementById('tc-messages');
+      const empty = container.querySelector('.tc-empty');
+      if (empty) empty.remove();
+      const div = document.createElement('div');
+      div.className = 'tc-msg';
+      const userColor = color || generateColor(user);
+      div.innerHTML =
+        '<span class="tc-user" style="color:' + userColor + '">' + escapeHtml(user) + ':</span>' +
+        '<span class="tc-text">' + escapeHtml(text) + '</span>';
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      const msgs = container.querySelectorAll('.tc-msg');
+      if (msgs.length > 200) msgs[0].remove();
+      if (!twitchChatOpen) { twitchChatUnread++; updateTCBadge(); }
+    }
+
+    function addTCSystem(text) {
+      const container = document.getElementById('tc-messages');
+      const div = document.createElement('div');
+      div.className = 'tc-msg';
+      div.innerHTML = '<span class="tc-text" style="color:#555;font-style:italic">' + escapeHtml(text) + '</span>';
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function clearTCMessages() {
+      document.getElementById('tc-messages').innerHTML = '';
+    }
+
+    function generateColor(name) {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return 'hsl(' + (Math.abs(hash) % 360) + ', 65%, 58%)';
+    }
+
+    function toggleTTS() {
+      // State is controlled from the device — button shows current state
+    }
+
+    function queueTTS(user, message) {
+      if (message.startsWith('!')) return;
+      ttsQueue.push({ user, message });
+      if (!ttsSpeaking) processTTSQueue();
+    }
+
+    function processTTSQueue() {
+      if (ttsQueue.length === 0) { ttsSpeaking = false; return; }
+      ttsSpeaking = true;
+      const item = ttsQueue.shift();
+      const sameUser = item.user === lastTTSUser;
+      const text = sameUser ? item.message : item.user + ': ' + item.message;
+      lastTTSUser = item.user;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'twitch_chat_tts', message: text }));
+      }
+      setTimeout(() => processTTSQueue(), 3000);
+    }
+
+    document.getElementById('tc-channel-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') toggleTwitchIRC();
+    });
+
+    // ── File upload ──────────────────────────────────────────────────────────
+    function toggleUploadModal() {
+      const modal = document.getElementById('upload-modal');
+      const isVisible = modal.style.display === 'flex';
+      modal.style.display = isVisible ? 'none' : 'flex';
+      if (!isVisible) {
+        document.getElementById('upload-status').style.display = 'none';
+        document.getElementById('upload-result').style.display = 'none';
+        document.getElementById('upload-file-input').value = '';
+        document.getElementById('upload-progress-bar').style.width = '0%';
+        document.getElementById('upload-drop').style.borderColor = 'rgba(255,255,255,0.2)';
+      }
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('upload-modal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('upload-modal')) toggleUploadModal();
+    });
+
+    // Drag-and-drop support
+    const dropZone = document.getElementById('upload-drop');
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#4cd964'; });
+    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'rgba(255,255,255,0.2)'; });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'rgba(255,255,255,0.2)';
+      const file = e.dataTransfer.files[0];
+      if (file) startUpload(file);
+    });
+
+    function startUpload(file) {
+      if (!file) return;
+      const statusEl = document.getElementById('upload-status');
+      const statusText = document.getElementById('upload-status-text');
+      const progressBar = document.getElementById('upload-progress-bar');
+      const resultEl = document.getElementById('upload-result');
+
+      statusEl.style.display = 'block';
+      resultEl.style.display = 'none';
+      statusText.textContent = `Загрузка: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} МБ)...`;
+      progressBar.style.width = '0%';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          progressBar.style.width = pct + '%';
+          statusText.textContent = `Загрузка: ${file.name} — ${pct}%`;
+        }
+      });
+      xhr.addEventListener('load', () => {
+        statusEl.style.display = 'none';
+        resultEl.style.display = 'block';
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.ok) {
+            resultEl.style.background = 'rgba(76,217,100,0.15)';
+            resultEl.style.color = '#4cd964';
+            resultEl.style.border = '1px solid rgba(76,217,100,0.3)';
+            resultEl.innerHTML = `✓ Готово! <b>${data.name}</b> (${data.size_mb} МБ)<br><span style="opacity:0.7">Лапа получила уведомление в Telegram</span>`;
+          } else {
+            resultEl.style.background = 'rgba(255,59,48,0.15)';
+            resultEl.style.color = '#ff3b30';
+            resultEl.style.border = '1px solid rgba(255,59,48,0.3)';
+            resultEl.textContent = '✗ Ошибка: ' + (data.error || 'неизвестная ошибка');
+          }
+        } catch {
+          resultEl.style.background = 'rgba(255,59,48,0.15)';
+          resultEl.style.color = '#ff3b30';
+          resultEl.style.border = '1px solid rgba(255,59,48,0.3)';
+          resultEl.textContent = '✗ Ошибка сервера';
+        }
+      });
+      xhr.addEventListener('error', () => {
+        statusEl.style.display = 'none';
+        resultEl.style.display = 'block';
+        resultEl.style.background = 'rgba(255,59,48,0.15)';
+        resultEl.style.color = '#ff3b30';
+        resultEl.style.border = '1px solid rgba(255,59,48,0.3)';
+        resultEl.textContent = '✗ Ошибка сети';
+      });
+      xhr.open('POST', '/api/upload');
+      xhr.send(formData);
+    }
+
+    loadConfig();
+    startAutoConnect();
+  </script>
+</body>
+</html>

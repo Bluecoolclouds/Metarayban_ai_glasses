@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Терминал — VisionClaw</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 18px;
+      background: #111;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+    .topbar-logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #00c896;
+      letter-spacing: 1px;
+    }
+    .topbar-title {
+      font-size: 14px;
+      color: #888;
+    }
+    .topbar-back {
+      margin-left: auto;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #bbb;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .topbar-back:hover { background: #2a2a2a; color: #fff; }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 18px;
+      background: #0d0d0d;
+      border-bottom: 1px solid #1e1e1e;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #666;
+    }
+    .status-dot.connected { background: #00c896; }
+    .status-dot.error { background: #e05252; }
+    #status-text { color: #888; }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .btn-sm {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #bbb;
+      padding: 3px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-sm:hover { background: #2a2a2a; color: #fff; }
+    .btn-sm.danger { border-color: #552222; color: #e05252; }
+    .btn-sm.danger:hover { background: #2a1515; }
+
+    .terminal-wrap {
+      flex: 1;
+      overflow: hidden;
+      padding: 8px;
+      position: relative;
+    }
+    #terminal-container {
+      position: absolute;
+      inset: 8px;
+    }
+    .xterm, .xterm-viewport, .xterm-screen {
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="topbar-logo">&#x1F43E; VisionClaw</span>
+    <span class="topbar-title">/ Терминал</span>
+    <a class="topbar-back" href="/">← Назад</a>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Подключение...</span>
+    <div class="btn-row">
+      <button class="btn-sm" onclick="sendOpenClaw()">Открыть OpenClaw TUI</button>
+      <button class="btn-sm" onclick="clearTerm()">Очистить</button>
+      <button class="btn-sm danger" onclick="disconnect()">Отключить</button>
+    </div>
+  </div>
+
+  <div class="terminal-wrap">
+    <div id="terminal-container"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.js"></script>
+  <script>
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 14,
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+      theme: {
+        background: '#0a0a0a',
+        foreground: '#e0e0e0',
+        cursor: '#00c896',
+        cursorAccent: '#0a0a0a',
+        selectionBackground: '#264f78',
+        black:   '#1e1e1e', brightBlack:   '#555',
+        red:     '#e05252', brightRed:     '#ff6b6b',
+        green:   '#00c896', brightGreen:   '#4fffcc',
+        yellow:  '#e0b352', brightYellow:  '#ffd580',
+        blue:    '#5294e0', brightBlue:    '#80c0ff',
+        magenta: '#b052e0', brightMagenta: '#e08fff',
+        cyan:    '#52c0e0', brightCyan:    '#80e8ff',
+        white:   '#d0d0d0', brightWhite:   '#ffffff',
+      },
+      allowProposedApi: true,
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+    term.loadAddon(fitAddon);
+    term.loadAddon(webLinksAddon);
+    term.open(document.getElementById('terminal-container'));
+
+    const dot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    function setStatus(state, msg) {
+      dot.className = 'status-dot' + (state ? ' ' + state : '');
+      statusText.textContent = msg;
+    }
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${proto}//${location.host}/terminal-ws`;
+    let ws = null;
+
+    function sendResize() {
+      fitAddon.fit();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+      }
+    }
+
+    function connect() {
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        setStatus('connected', 'Подключено');
+        fitAddon.fit();
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+        ws.send(JSON.stringify({ type: 'input', data: '\r' }));
+      };
+
+      ws.onmessage = (e) => {
+        if (e.data instanceof ArrayBuffer) {
+          term.write(new Uint8Array(e.data));
+        } else {
+          term.write(e.data);
+        }
+      };
+
+      ws.onclose = () => {
+        setStatus('error', 'Отключено');
+      };
+
+      ws.onerror = () => {
+        setStatus('error', 'Ошибка подключения');
+      };
+    }
+
+    term.onData((data) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data }));
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      sendResize();
+    });
+
+    function sendOpenClaw() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data: 'node node_modules/openclaw/dist/index.js tui\r' }));
+      }
+    }
+
+    function clearTerm() {
+      term.clear();
+    }
+
+    function disconnect() {
+      if (ws) ws.close();
+    }
+
+    setTimeout(connect, 100);
+  </script>
+</body>
+</html>

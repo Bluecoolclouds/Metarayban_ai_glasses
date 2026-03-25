@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Settings — OpenClaw</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .header h1 {
+      font-size: 24px;
+      color: #fff;
+    }
+    .back-link {
+      color: #7c8aff;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .section {
+      background: #13131a;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .section h2 {
+      font-size: 18px;
+      color: #fff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section h2 .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      display: inline-block;
+    }
+
+    .provider-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .provider-tab {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 2px solid #2a2a3a;
+      background: #1a1a24;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .provider-tab:hover {
+      border-color: #444;
+      color: #fff;
+    }
+    .provider-tab.active {
+      border-color: #7c8aff;
+      background: #1a1a30;
+      color: #7c8aff;
+    }
+
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .model-card {
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 2px solid #2a2a3a;
+      background: #1a1a24;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .model-card:hover {
+      border-color: #444;
+    }
+    .model-card.active {
+      border-color: #4ade80;
+      background: #1a2a1a;
+    }
+    .model-card .model-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .model-card .model-tier {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+    .model-card .model-price {
+      font-size: 11px;
+      color: #666;
+      margin-top: 6px;
+    }
+    .model-card .model-price span {
+      color: #4ade80;
+    }
+    .cost-highlight {
+      color: #4ade80 !important;
+      font-size: 22px !important;
+    }
+
+    .save-btn {
+      padding: 12px 32px;
+      background: #7c8aff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: background 0.2s;
+    }
+    .save-btn:hover { background: #6a78ee; }
+    .save-btn:disabled {
+      background: #333;
+      cursor: not-allowed;
+    }
+
+    .status-msg {
+      display: inline-block;
+      margin-left: 12px;
+      font-size: 13px;
+      color: #4ade80;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .status-msg.visible { opacity: 1; }
+    .status-msg.error { color: #f87171; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: #1a1a24;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-card .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .stat-card .stat-label {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .token-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .token-table th,
+    .token-table td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid #2a2a3a;
+      font-size: 13px;
+    }
+    .token-table th {
+      color: #888;
+      font-weight: 500;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .token-table td {
+      color: #e0e0e0;
+    }
+    .token-table .num {
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .provider-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .provider-badge.anthropic { background: #2a1a30; color: #c084fc; }
+    .provider-badge.openai { background: #1a2a20; color: #4ade80; }
+    .provider-badge.gemini { background: #2a2a1a; color: #facc15; }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .cookie-hint {
+      font-size: 13px; color: #888; line-height: 1.6; margin-bottom: 16px;
+      padding: 12px 16px; background: #0d0d18; border: 1px solid #2a2a3a;
+      border-radius: 8px;
+    }
+    .cookie-hint code {
+      background: #1e1e2e; padding: 2px 6px; border-radius: 4px;
+      font-family: 'SF Mono', monospace; font-size: 12px; color: #a78bfa;
+    }
+    .cookie-hint a { color: #7c8aff; text-decoration: none; }
+    .cookie-hint a:hover { text-decoration: underline; }
+    .cookie-textarea {
+      width: 100%; min-height: 140px; padding: 12px 14px;
+      background: #0d0d18; border: 1px solid #2a2a3a; border-radius: 8px;
+      color: #e0e0e0; font-family: 'SF Mono', monospace; font-size: 12px;
+      resize: vertical; outline: none; margin-bottom: 12px;
+    }
+    .cookie-textarea:focus { border-color: #4ade80; }
+    .cookie-textarea::placeholder { color: #444; }
+    .cookie-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .cookie-count {
+      font-size: 13px; color: #4ade80; margin-left: auto;
+    }
+    .cookie-count.empty { color: #666; }
+    .btn-danger {
+      padding: 9px 18px; font-size: 14px; border-radius: 8px; border: none;
+      cursor: pointer; font-weight: 600; background: rgba(239,68,68,0.15);
+      color: #f87171; border: 1px solid rgba(239,68,68,0.3);
+      transition: background 0.2s;
+    }
+    .btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+    .current-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #1a2a1a;
+      border: 1px solid #2a3a2a;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .current-indicator .label {
+      font-size: 12px;
+      color: #4ade80;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .current-indicator .value {
+      font-size: 15px;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>AI Settings</h1>
+      <a href="/" class="back-link">← Back to viewer</a>
+    </div>
+
+    <div class="section">
+      <h2><span class="dot"></span> Current Model</h2>
+      <div class="current-indicator">
+        <div>
+          <div class="label">Active</div>
+          <div class="value" id="current-model">Loading...</div>
+        </div>
+      </div>
+
+      <div class="provider-tabs" id="provider-tabs"></div>
+      <div class="model-grid" id="model-grid"></div>
+
+      <div style="display:flex;align-items:center;margin-top:16px;">
+        <button class="save-btn" id="save-btn" disabled>Save</button>
+        <span class="status-msg" id="status-msg"></span>
+      </div>
+    </div>
+
+    <!-- Browser Cookies -->
+    <div class="section">
+      <h2><span class="dot" style="background:#60a5fa"></span> Browser Cookies</h2>
+      <div class="cookie-hint">
+        Чтобы OpenClaw заходил на сайты от твоего имени, вставь сюда куки в JSON-формате.<br>
+        Используй расширение <a href="https://chrome.google.com/webstore/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" target="_blank">Cookie-Editor</a>
+        или <a href="https://chrome.google.com/webstore/detail/editthiscookie/fngmhnnpilhplaeedifhccceomclgfbg" target="_blank">EditThisCookie</a>:
+        зайди на нужный сайт (например avito.ru), нажми расширение → Export → скопируй JSON → вставь ниже.
+      </div>
+      <textarea class="cookie-textarea" id="cookie-input"
+        placeholder='[{"name":"sess_id","value":"abc123","domain":".avito.ru","path":"/","secure":true,"httpOnly":true}, ...]'></textarea>
+      <div class="cookie-actions">
+        <button class="save-btn" onclick="saveCookies()">Сохранить куки</button>
+        <button class="btn-danger" onclick="clearCookies()">Удалить</button>
+        <span class="cookie-count empty" id="cookie-count">Загрузка...</span>
+      </div>
+      <div class="status-msg" id="cookie-status" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="section">
+      <h2>Token Usage — Today</h2>
+      <div class="stats-grid" id="today-stats"></div>
+    </div>
+
+    <div class="section">
+      <h2>Token Usage — All Time</h2>
+      <div class="stats-grid" id="alltime-stats"></div>
+      <div id="model-breakdown"></div>
+    </div>
+  </div>
+
+  <script>
+    let providers = {};
+    let currentSettings = { provider: '', model: '' };
+    let selectedProvider = '';
+    let selectedModel = '';
+
+    function formatNumber(n) {
+      if (!n) return '0';
+      n = parseInt(n);
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+      return n.toString();
+    }
+
+    function formatCost(cost) {
+      if (!cost || cost === 0) return '$0.00';
+      if (cost < 0.01) return '$' + cost.toFixed(4);
+      if (cost < 1) return '$' + cost.toFixed(3);
+      return '$' + cost.toFixed(2);
+    }
+
+    async function loadProviders() {
+      const res = await fetch('/api/ai/providers');
+      providers = await res.json();
+    }
+
+    async function loadSettings() {
+      const res = await fetch('/api/ai/settings');
+      currentSettings = await res.json();
+      selectedProvider = currentSettings.provider;
+      selectedModel = currentSettings.model;
+
+      const providerInfo = providers[currentSettings.provider];
+      const modelInfo = providerInfo?.models?.find(m => m.id === currentSettings.model);
+      document.getElementById('current-model').textContent =
+        `${providerInfo?.name || currentSettings.provider} — ${modelInfo?.name || currentSettings.model}`;
+    }
+
+    function renderProviderTabs() {
+      const container = document.getElementById('provider-tabs');
+      container.innerHTML = '';
+      for (const [key, info] of Object.entries(providers)) {
+        const tab = document.createElement('div');
+        tab.className = `provider-tab ${key === selectedProvider ? 'active' : ''}`;
+        tab.textContent = info.name;
+        tab.onclick = () => {
+          selectedProvider = key;
+          selectedModel = '';
+          renderProviderTabs();
+          renderModelGrid();
+          updateSaveButton();
+        };
+        container.appendChild(tab);
+      }
+    }
+
+    function renderModelGrid() {
+      const container = document.getElementById('model-grid');
+      container.innerHTML = '';
+      const info = providers[selectedProvider];
+      if (!info) return;
+
+      for (const model of info.models) {
+        const card = document.createElement('div');
+        card.className = `model-card ${model.id === selectedModel ? 'active' : ''}`;
+        card.innerHTML = `
+          <div class="model-name">${model.name}</div>
+          <div class="model-tier">${model.tier}</div>
+          <div class="model-price"><span>$${model.inputPrice}</span> / 1M input &nbsp; <span>$${model.outputPrice}</span> / 1M output</div>
+        `;
+        card.onclick = () => {
+          selectedModel = model.id;
+          renderModelGrid();
+          updateSaveButton();
+        };
+        container.appendChild(card);
+      }
+    }
+
+    function updateSaveButton() {
+      const btn = document.getElementById('save-btn');
+      const changed = selectedProvider !== currentSettings.provider || selectedModel !== currentSettings.model;
+      btn.disabled = !changed || !selectedModel;
+    }
+
+    async function saveSettings() {
+      const btn = document.getElementById('save-btn');
+      const msg = document.getElementById('status-msg');
+      btn.disabled = true;
+      msg.className = 'status-msg';
+      msg.textContent = '';
+
+      try {
+        const res = await fetch('/api/ai/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: selectedProvider, model: selectedModel }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error);
+        }
+        currentSettings = { provider: selectedProvider, model: selectedModel };
+        msg.textContent = 'Saved!';
+        msg.className = 'status-msg visible';
+
+        const providerInfo = providers[currentSettings.provider];
+        const modelInfo = providerInfo?.models?.find(m => m.id === currentSettings.model);
+        document.getElementById('current-model').textContent =
+          `${providerInfo?.name || currentSettings.provider} — ${modelInfo?.name || currentSettings.model}`;
+
+        setTimeout(() => { msg.className = 'status-msg'; }, 3000);
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.className = 'status-msg visible error';
+        btn.disabled = false;
+      }
+    }
+
+    async function loadTokenStats() {
+      const res = await fetch('/api/ai/tokens');
+      const stats = await res.json();
+
+      document.getElementById('today-stats').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-value cost-highlight">${formatCost(stats.today.cost)}</div>
+          <div class="stat-label">Cost Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatNumber(stats.today.total_tokens)}</div>
+          <div class="stat-label">Total Tokens</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatNumber(stats.today.total_input)}</div>
+          <div class="stat-label">Input Tokens</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatNumber(stats.today.total_output)}</div>
+          <div class="stat-label">Output Tokens</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatNumber(stats.today.request_count)}</div>
+          <div class="stat-label">Requests</div>
+        </div>
+      `;
+
+      document.getElementById('alltime-stats').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-value cost-highlight">${formatCost(stats.allTime.cost)}</div>
+          <div class="stat-label">Total Cost</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatNumber(stats.allTime.total_tokens)}</div>
+          <div class="stat-label">Total Tokens</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatNumber(stats.allTime.total_input)}</div>
+          <div class="stat-label">Input Tokens</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatNumber(stats.allTime.total_output)}</div>
+          <div class="stat-label">Output Tokens</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${formatNumber(stats.allTime.request_count)}</div>
+          <div class="stat-label">Requests</div>
+        </div>
+      `;
+
+      const breakdown = document.getElementById('model-breakdown');
+      if (stats.byModel.length === 0) {
+        breakdown.innerHTML = '<div class="empty-state">No usage data yet</div>';
+      } else {
+        let rows = stats.byModel.map(row => `
+          <tr>
+            <td><span class="provider-badge ${row.provider}">${row.provider}</span></td>
+            <td>${row.model}</td>
+            <td class="num">${formatNumber(row.total_input)}</td>
+            <td class="num">${formatNumber(row.total_output)}</td>
+            <td class="num">${formatNumber(row.total_tokens)}</td>
+            <td class="num" style="color:#4ade80">${formatCost(row.cost)}</td>
+            <td class="num">${row.request_count}</td>
+          </tr>
+        `).join('');
+
+        breakdown.innerHTML = `
+          <table class="token-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Model</th>
+                <th class="num">Input</th>
+                <th class="num">Output</th>
+                <th class="num">Total</th>
+                <th class="num">Cost</th>
+                <th class="num">Requests</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }
+    }
+
+    document.getElementById('save-btn').addEventListener('click', saveSettings);
+
+    // ── Cookie management ──────────────────────────────────
+    async function loadCookieCount() {
+      try {
+        const r = await fetch('/api/browser-cookies');
+        const data = await r.json();
+        const el = document.getElementById('cookie-count');
+        if (data.count > 0) {
+          el.textContent = `✓ Сохранено ${data.count} куки`;
+          el.classList.remove('empty');
+        } else {
+          el.textContent = 'Куки не заданы';
+          el.classList.add('empty');
+        }
+      } catch (_) {}
+    }
+
+    async function saveCookies() {
+      const raw = document.getElementById('cookie-input').value.trim();
+      const statusEl = document.getElementById('cookie-status');
+      if (!raw) { statusEl.style.color='#f87171'; statusEl.textContent = 'Вставьте JSON с куками'; return; }
+      let cookies;
+      try {
+        cookies = JSON.parse(raw);
+        if (!Array.isArray(cookies)) throw new Error('Ожидается массив []');
+      } catch (e) {
+        statusEl.style.color = '#f87171';
+        statusEl.textContent = 'Ошибка парсинга JSON: ' + e.message;
+        return;
+      }
+      // Normalize cookies for Playwright (ensure required fields)
+      cookies = cookies.map(c => {
+        const out = { name: c.name, value: c.value || '', domain: c.domain || '', path: c.path || '/' };
+        if (c.expires !== undefined) out.expires = typeof c.expirationDate !== 'undefined' ? c.expirationDate : c.expires;
+        if (c.httpOnly !== undefined) out.httpOnly = c.httpOnly;
+        if (c.secure !== undefined) out.secure = c.secure;
+        if (c.sameSite) out.sameSite = c.sameSite === 'no_restriction' ? 'None' : c.sameSite === 'lax' ? 'Lax' : c.sameSite === 'strict' ? 'Strict' : c.sameSite;
+        return out;
+      });
+      try {
+        const r = await fetch('/api/browser-cookies', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cookies }) });
+        const data = await r.json();
+        if (data.ok) {
+          statusEl.style.color = '#4ade80';
+          statusEl.textContent = `✓ Сохранено ${data.count} куки — браузер теперь будет использовать их`;
+          document.getElementById('cookie-input').value = '';
+          loadCookieCount();
+        } else {
+          statusEl.style.color = '#f87171';
+          statusEl.textContent = 'Ошибка: ' + data.error;
+        }
+      } catch (e) {
+        statusEl.style.color = '#f87171';
+        statusEl.textContent = 'Ошибка сети: ' + e.message;
+      }
+    }
+
+    async function clearCookies() {
+      if (!confirm('Удалить все сохранённые куки?')) return;
+      await fetch('/api/browser-cookies', { method: 'DELETE' });
+      document.getElementById('cookie-status').style.color = '#888';
+      document.getElementById('cookie-status').textContent = 'Куки удалены';
+      loadCookieCount();
+    }
+
+    (async () => {
+      await loadProviders();
+      await loadSettings();
+      renderProviderTabs();
+      renderModelGrid();
+      updateSaveButton();
+      await loadTokenStats();
+      await loadCookieCount();
+    })();
+  </script>
+</body>
+</html>

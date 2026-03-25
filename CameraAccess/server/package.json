@@ -1,0 +1,22 @@
+{
+  "name": "webrtc-signaling-server",
+  "version": "2026.3.13",
+  "description": "WebRTC signaling server for Meta glasses POV streaming",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@google/genai": "^1.45.0",
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1",
+    "busboy": "^1.6.0",
+    "edge-tts": "^1.0.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "openai": "^6.29.0",
+    "pg": "^8.20.0",
+    "playwright": "^1.58.2",
+    "undici": "^7.24.2",
+    "ws": "^8.19.0"
+  }
+}

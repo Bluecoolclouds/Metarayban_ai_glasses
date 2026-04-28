@@ -2,13 +2,9 @@ package com.meta.wearable.dat.externalsampleapps.cameraaccess.ui
 
 import android.widget.Toast
 import androidx.activity.compose.LocalActivity
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,10 +13,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -34,12 +32,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
@@ -49,6 +46,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,18 +59,31 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.meta.wearable.dat.core.types.RegistrationState
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.R
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.GeminiConnectionState
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.gemini.GeminiSessionViewModel
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.wearables.WearablesViewModel
+
+private val CardBg = Color(0xFF0C0F1A)
+private val NavBg  = Color(0xFF080C18)
+private val Cam    = Color(0xFF4B9EFF)
+private val CamBg  = Color(0xFF1A2A3F)
+private val Str    = Color(0xFF00D46A)
+private val StrBg  = Color(0xFF1A2E24)
+private val Dic    = Color(0xFFFF4D6D)
+private val DicBg  = Color(0xFF2E1A20)
+private val Trn    = Color(0xFF22D3EE)
+private val TrnBg  = Color(0xFF0F2430)
 
 @Composable
 fun MainMenuScreen(
@@ -81,37 +92,26 @@ fun MainMenuScreen(
     modifier: Modifier = Modifier,
     geminiViewModel: GeminiSessionViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState       by viewModel.uiState.collectAsStateWithLifecycle()
     val geminiUiState by geminiViewModel.uiState.collectAsStateWithLifecycle()
     val geminiMicLevel by geminiViewModel.micLevel.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
-    val activity = LocalActivity.current
-    val context = LocalContext.current
+    val activity    = LocalActivity.current
+    val context     = LocalContext.current
     var dropdownExpanded by remember { mutableStateOf(false) }
 
-    val isRegistered = uiState.isRegistered
-    val hasDevice = uiState.hasActiveDevice
+    val isRegistered        = uiState.isRegistered
+    val hasDevice           = uiState.hasActiveDevice
     val isDisconnectEnabled = uiState.registrationState is RegistrationState.Registered
+
+    val isGeminiActive = geminiUiState.isGeminiActive
+    val geminiState    = geminiUiState.connectionState
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(AppColor.SurfaceDeep),
+            .background(NavBg),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(320.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x2006B6D4),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -119,78 +119,96 @@ fun MainMenuScreen(
                 .navigationBarsPadding()
                 .verticalScroll(scrollState),
         ) {
+
+            // ── Header ────────────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!isRegistered) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape)
+                            .background(AppColor.MetaBlue.copy(alpha = 0.18f))
                             .clickable { viewModel.hideMainMenu() },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White.copy(alpha = 0.6f),
+                            tint = AppColor.MetaBlue,
                             modifier = Modifier.size(18.dp),
                         )
                     }
                 } else {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(AppColor.MetaBlue.copy(alpha = 0.18f)),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        val pulse = rememberInfiniteTransition(label = "pulse")
-                        val alpha by pulse.animateFloat(
-                            initialValue = 0.4f,
-                            targetValue = 1f,
-                            animationSpec = infiniteRepeatable(
-                                tween(900, easing = LinearEasing),
-                                RepeatMode.Reverse,
-                            ),
-                            label = "pulse_alpha",
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(
-                                    color = if (hasDevice) AppColor.Green.copy(alpha = alpha) else AppColor.Red.copy(alpha = alpha),
-                                    shape = CircleShape,
-                                ),
-                        )
                         Text(
-                            text = if (hasDevice) "Подключено" else "Отключено",
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = 1.sp,
+                            text = "VS",
+                            color = AppColor.MetaBlue,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.smart_glasses_icon),
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.70f),
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Meta",
+                        color = Color.White.copy(alpha = 0.70f),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp,
+                    )
+                    Text(
+                        text = "  |  ",
+                        color = Color.White.copy(alpha = 0.20f),
+                        fontSize = 14.sp,
+                    )
+                    Text(
+                        text = "Ray-Ban",
+                        color = Color.White.copy(alpha = 0.70f),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp,
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
 
                 IconButton(onClick = { viewModel.showSettings() }) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.05f))
+                            .background(Color.White.copy(alpha = 0.06f))
                             .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings",
-                            tint = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.size(18.dp),
+                            tint = Color.White.copy(alpha = 0.55f),
+                            modifier = Modifier.size(17.dp),
                         )
                     }
                 }
@@ -200,17 +218,17 @@ fun MainMenuScreen(
                         IconButton(onClick = { dropdownExpanded = true }) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.05f))
+                                    .background(Color.White.copy(alpha = 0.06f))
                                     .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.LinkOff,
                                     contentDescription = "Disconnect",
-                                    tint = Color.White.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(18.dp),
+                                    tint = Color.White.copy(alpha = 0.55f),
+                                    modifier = Modifier.size(17.dp),
                                 )
                             }
                         }
@@ -237,188 +255,223 @@ fun MainMenuScreen(
                 }
             }
 
-            GlassesHero(
-                hasDevice = hasDevice,
-                isGeminiActive = geminiUiState.isGeminiActive,
-                geminiState = geminiUiState.connectionState,
-                micLevel = geminiMicLevel,
+            Spacer(Modifier.height(4.dp))
+
+            // ── Device card ───────────────────────────────────────────────
+            DeviceCard(
+                hasDevice      = hasDevice,
+                isGeminiActive = isGeminiActive,
+                geminiState    = geminiState,
+                micLevel       = geminiMicLevel,
                 onToggleGemini = {
-                    if (geminiUiState.isGeminiActive) geminiViewModel.stopSession()
+                    if (isGeminiActive) geminiViewModel.stopSession()
                     else geminiViewModel.startSession()
                 },
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                SectionLabel("СТАРТ")
+            // ── Quick Access ──────────────────────────────────────────────
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                SectionLabel("БЫСТРЫЙ ДОСТУП")
+                Spacer(Modifier.height(10.dp))
+                QuickAccessGrid(
+                    hasDevice   = hasDevice,
+                    onCamera    = { viewModel.navigateToStreaming(onRequestWearablesPermission) },
+                    onStream    = { viewModel.navigateToStreaming(onRequestWearablesPermission) },
+                    onDictaphone = { viewModel.showDictaphone() },
+                    onTranslate = { viewModel.navigateToPhoneMode() },
+                )
+            }
 
-                GlassActionCard(
-                    icon = Icons.Default.PlayArrow,
-                    iconColor = AppColor.Green,
-                    title = "Запустить стриминг",
-                    subtitle = "Трансляция с камеры очков",
-                    enabled = hasDevice,
-                    onClick = { viewModel.navigateToStreaming(onRequestWearablesPermission) },
-                )
-                GlassActionCard(
-                    icon = Icons.Default.PhoneAndroid,
-                    iconColor = AppColor.Cyan,
-                    title = "Камера телефона",
-                    subtitle = "Стриминг с фронтальной камеры",
-                    onClick = { viewModel.navigateToPhoneMode() },
-                )
-                GlassActionCard(
-                    icon = Icons.Default.Mic,
-                    iconColor = AppColor.Orange,
-                    title = "Диктофон",
-                    subtitle = "Голосовой рекордер",
-                    onClick = { viewModel.showDictaphone() },
-                )
-                GlassActionCard(
-                    icon = Icons.Default.Restaurant,
-                    iconColor = AppColor.Red,
-                    title = "Калории",
-                    subtitle = "Дневник питания и счётчик",
-                    onClick = { viewModel.showCalorie() },
-                )
-                GlassActionCard(
-                    icon = Icons.Default.Language,
-                    iconColor = AppColor.DeepBlue,
-                    title = "Переводчик",
-                    subtitle = "Перевод речи в реальном времени",
-                    onClick = { viewModel.navigateToPhoneMode() },
-                )
+            Spacer(Modifier.height(20.dp))
 
-                Spacer(modifier = Modifier.height(4.dp))
+            // ── Functions ─────────────────────────────────────────────────
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 SectionLabel("ФУНКЦИИ")
-
+                Spacer(Modifier.height(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        FeatureChip(Icons.Default.SmartToy, AppColor.Purple, "AI Ассистент", "Gemini Live")
-                        FeatureChip(Icons.Default.Visibility, AppColor.Cyan, "Нарратор сцен", "Описание камеры")
-                        FeatureChip(Icons.Default.TextFields, AppColor.Orange, "Чтение текста", "OCR")
+                        FeatureChip(
+                            icon = Icons.Default.SmartToy,
+                            iconColor = AppColor.Purple,
+                            title = "AI Ассистент",
+                            subtitle = "Gemini Live",
+                            onClick = {
+                                if (isGeminiActive) geminiViewModel.stopSession()
+                                else geminiViewModel.startSession()
+                            },
+                        )
+                        FeatureChip(
+                            icon = Icons.Default.Visibility,
+                            iconColor = AppColor.Cyan,
+                            title = "Нарратор сцен",
+                            subtitle = "Описание камеры",
+                        )
+                        FeatureChip(
+                            icon = Icons.Default.TextFields,
+                            iconColor = AppColor.Orange,
+                            title = "Чтение текста",
+                            subtitle = "OCR",
+                        )
+                        FeatureChip(
+                            icon = Icons.Default.Restaurant,
+                            iconColor = AppColor.Red,
+                            title = "Калории",
+                            subtitle = "Дневник питания",
+                            onClick = { viewModel.showCalorie() },
+                        )
                     }
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        FeatureChip(Icons.Default.CameraAlt, AppColor.MetaBlue, "POV Стриминг", "WebRTC в браузер")
-                        FeatureChip(Icons.Default.LiveTv, AppColor.TwitchPurple, "Twitch", "RTMP эфир")
-                        FeatureChip(Icons.Default.Restaurant, AppColor.Red, "Режим готовки", "Рецепты + таймер")
+                        FeatureChip(
+                            icon = Icons.Default.CameraAlt,
+                            iconColor = AppColor.MetaBlue,
+                            title = "POV Стриминг",
+                            subtitle = "WebRTC в браузер",
+                            onClick = { viewModel.navigateToStreaming(onRequestWearablesPermission) },
+                        )
+                        FeatureChip(
+                            icon = Icons.Default.LiveTv,
+                            iconColor = AppColor.TwitchPurple,
+                            title = "Twitch",
+                            subtitle = "RTMP эфир",
+                        )
+                        FeatureChip(
+                            icon = Icons.Default.Language,
+                            iconColor = AppColor.DeepBlue,
+                            title = "Режим готовки",
+                            subtitle = "Рецепты + таймер",
+                        )
+                        FeatureChip(
+                            icon = Icons.Default.Settings,
+                            iconColor = AppColor.SubtleText,
+                            title = "Настройки",
+                            subtitle = "Все параметры",
+                            onClick = { viewModel.showSettings() },
+                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
             }
+
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
+// ── DeviceCard ──────────────────────────────────────────────────────────────
+
 @Composable
-private fun GlassesHero(
+private fun DeviceCard(
     hasDevice: Boolean,
     isGeminiActive: Boolean,
     geminiState: GeminiConnectionState,
-    micLevel: Float = 0f,
+    micLevel: Float,
     onToggleGemini: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = Modifier
+    Box(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .height(190.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(CardBg),
     ) {
+        Image(
+            painter = painterResource(R.drawable.rayban_meta_hero),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxHeight(0.88f)
+                .align(Alignment.CenterEnd)
+                .offset(x = 22.dp),
+            contentScale = ContentScale.FillHeight,
+            alpha = if (hasDevice) 1f else 0.35f,
+        )
+
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        0.00f to CardBg.copy(alpha = 0.97f),
+                        0.28f to CardBg.copy(alpha = 0.88f),
+                        0.55f to CardBg.copy(alpha = 0.38f),
+                        0.82f to Color.Transparent,
+                    ),
+                ),
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 18.dp, top = 16.dp, end = 100.dp),
         ) {
-            Row(
-                modifier = Modifier.align(Alignment.Center),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(22.dp)
-                        .height(3.dp)
-                        .background(AppColor.Cyan.copy(alpha = 0.20f), RoundedCornerShape(topStart = 2.dp, bottomStart = 2.dp)),
+            Text(
+                text = "Ray-Ban Meta",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 17.sp,
+            )
+            Text(
+                text = "Wayfarer • Matte Black",
+                color = Color.White.copy(alpha = 0.42f),
+                fontSize = 11.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = if (hasDevice) "73" else "—",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 34.sp,
+                    lineHeight = 34.sp,
                 )
-                Box(
-                    modifier = Modifier
-                        .size(width = 96.dp, height = 64.dp)
-                        .border(1.5.dp, AppColor.Cyan.copy(alpha = 0.30f), RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.linearGradient(listOf(AppColor.Cyan.copy(0.08f), Color.Transparent)),
-                            RoundedCornerShape(14.dp),
-                        ),
-                )
-                Box(
-                    modifier = Modifier
-                        .width(20.dp)
-                        .height(3.dp)
-                        .background(AppColor.Cyan.copy(alpha = 0.28f), CircleShape),
-                )
-                Box(
-                    modifier = Modifier
-                        .size(width = 96.dp, height = 64.dp)
-                        .border(1.5.dp, AppColor.Cyan.copy(alpha = 0.30f), RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.linearGradient(listOf(AppColor.Cyan.copy(0.08f), Color.Transparent)),
-                            RoundedCornerShape(14.dp),
-                        ),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(6.dp)
-                            .background(AppColor.Cyan.copy(alpha = 0.60f), CircleShape),
+                if (hasDevice) {
+                    Text(
+                        text = "%",
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 3.dp),
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .width(22.dp)
-                        .height(3.dp)
-                        .background(AppColor.Cyan.copy(alpha = 0.20f), RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)),
-                )
             }
+            Text(
+                text = if (hasDevice) "Заряд очков" else "Нет подключения",
+                color = Color.White.copy(alpha = 0.42f),
+                fontSize = 11.sp,
+            )
+            Spacer(Modifier.height(7.dp))
+            LinearProgressIndicator(
+                progress = { if (hasDevice) 0.73f else 0f },
+                modifier = Modifier
+                    .width(96.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                color = AppColor.MetaBlue,
+                trackColor = Color.White.copy(alpha = 0.10f),
+            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Ray-Ban Meta",
-            color = Color.White,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 18.sp,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = "Wayfarer · Matte Black",
-            color = Color.White.copy(alpha = 0.40f),
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 14.dp, bottom = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             StatusBadge(
                 icon = if (hasDevice) Icons.Default.BluetoothConnected else Icons.Default.Bluetooth,
                 iconColor = if (hasDevice) AppColor.Cyan else AppColor.SubtleText,
-                label = if (hasDevice) "BT 5.3" else "BT Off",
+                label = if (hasDevice) "Подключено" else "Bluetooth",
             )
             val geminiColor = when {
                 isGeminiActive && geminiState is GeminiConnectionState.Ready -> AppColor.Green
@@ -426,9 +479,9 @@ private fun GlassesHero(
                 else -> AppColor.SubtleText
             }
             val geminiLabel = when {
-                isGeminiActive && geminiState is GeminiConnectionState.Ready -> "Gemini •"
-                isGeminiActive -> "Gemini …"
-                else -> "Gemini ○"
+                isGeminiActive && geminiState is GeminiConnectionState.Ready -> "Gemini"
+                isGeminiActive -> "Gemini…"
+                else -> "AI Assistant"
             }
             StatusBadge(
                 icon = Icons.Default.SmartToy,
@@ -439,11 +492,95 @@ private fun GlassesHero(
         }
 
         if (isGeminiActive) {
-            Spacer(modifier = Modifier.height(10.dp))
-            GeminiMicBar(level = micLevel)
+            GeminiMicBar(
+                level = micLevel,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .width(110.dp)
+                    .padding(end = 14.dp, bottom = 14.dp),
+            )
         }
     }
 }
+
+// ── QuickAccessGrid ─────────────────────────────────────────────────────────
+
+@Composable
+private fun QuickAccessGrid(
+    hasDevice: Boolean,
+    onCamera: () -> Unit,
+    onStream: () -> Unit,
+    onDictaphone: () -> Unit,
+    onTranslate: () -> Unit,
+) {
+    data class QAItem(
+        val icon: ImageVector,
+        val label: String,
+        val sub: String,
+        val color: Color,
+        val bg: Color,
+        val onClick: () -> Unit,
+        val enabled: Boolean = true,
+    )
+    val items = listOf(
+        QAItem(Icons.Default.CameraAlt, "Камера",    "Фото и видео",       Cam, CamBg, onCamera,    hasDevice),
+        QAItem(Icons.Default.LiveTv,    "Стриминг",  "Трансляция",         Str, StrBg, onStream,    hasDevice),
+        QAItem(Icons.Default.Mic,       "Диктофон",  "Запись",             Dic, DicBg, onDictaphone),
+        QAItem(Icons.Default.Language,  "Перевод",   "Реальное время",     Trn, TrnBg, onTranslate),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        items.forEach { item ->
+            val a = if (item.enabled) 1f else 0.38f
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(item.bg)
+                    .border(1.dp, item.color.copy(alpha = 0.18f * a), RoundedCornerShape(18.dp))
+                    .clickable(enabled = item.enabled, onClick = item.onClick)
+                    .padding(horizontal = 8.dp, vertical = 11.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = null,
+                        tint = item.color.copy(alpha = a),
+                        modifier = Modifier.size(17.dp),
+                    )
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = item.color.copy(alpha = 0.40f * a),
+                        modifier = Modifier.size(13.dp),
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = item.label,
+                    color = Color.White.copy(alpha = a),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 11.sp,
+                    lineHeight = 13.sp,
+                )
+                Text(
+                    text = item.sub,
+                    color = item.color.copy(alpha = 0.55f * a),
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp,
+                )
+            }
+        }
+    }
+}
+
+// ── Shared small composables ────────────────────────────────────────────────
 
 @Composable
 private fun StatusBadge(
@@ -452,33 +589,18 @@ private fun StatusBadge(
     label: String,
     onClick: (() -> Unit)? = null,
 ) {
-    val borderColor = if (onClick != null) iconColor.copy(alpha = 0.30f)
-                      else Color.White.copy(alpha = 0.08f)
     Row(
         modifier = Modifier
             .clip(CircleShape)
-            .background(
-                if (onClick != null) iconColor.copy(alpha = 0.08f)
-                else Color.White.copy(alpha = 0.05f)
-            )
-            .border(1.dp, borderColor, CircleShape)
+            .background(iconColor.copy(alpha = if (onClick != null) 0.10f else 0.06f))
+            .border(1.dp, iconColor.copy(alpha = if (onClick != null) 0.30f else 0.12f), CircleShape)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = iconColor,
-            modifier = Modifier.size(14.dp),
-        )
-        Text(
-            text = label,
-            color = iconColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-        )
+        Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(13.dp))
+        Text(text = label, color = iconColor, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -486,8 +608,8 @@ private fun StatusBadge(
 private fun GeminiMicBar(level: Float, modifier: Modifier = Modifier) {
     val animLevel by animateFloatAsState(
         targetValue = level.coerceIn(0f, 1f),
-        animationSpec = tween(durationMillis = 80),
-        label = "mic-level",
+        animationSpec = tween(80),
+        label = "mic",
     )
     val barColor = when {
         animLevel > 0.65f -> AppColor.Red
@@ -495,29 +617,19 @@ private fun GeminiMicBar(level: Float, modifier: Modifier = Modifier) {
         else -> AppColor.Green
     }
     Row(
-        modifier = modifier.padding(horizontal = 4.dp),
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Icon(
-            imageVector = Icons.Default.Mic,
-            contentDescription = null,
-            tint = barColor.copy(alpha = 0.70f),
-            modifier = Modifier.size(11.dp),
-        )
+        Icon(Icons.Default.Mic, null, tint = barColor.copy(0.70f), modifier = Modifier.size(11.dp))
         Box(
             modifier = Modifier
                 .weight(1f)
                 .height(3.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(Color.White.copy(alpha = 0.08f)),
+                .background(Color.White.copy(0.08f)),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(animLevel)
-                    .height(3.dp)
-                    .background(barColor),
-            )
+            Box(Modifier.fillMaxWidth(animLevel).height(3.dp).background(barColor))
         }
     }
 }
@@ -526,76 +638,11 @@ private fun GeminiMicBar(level: Float, modifier: Modifier = Modifier) {
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        color = Color.White.copy(alpha = 0.30f),
+        color = Color.White.copy(alpha = 0.28f),
         fontSize = 11.sp,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         letterSpacing = 1.5.sp,
-        modifier = Modifier.padding(start = 2.dp, bottom = 2.dp),
     )
-}
-
-@Composable
-private fun GlassActionCard(
-    icon: ImageVector,
-    iconColor: Color,
-    title: String,
-    subtitle: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    val alpha = if (enabled) 1f else 0.38f
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        Color.White.copy(alpha = if (enabled) 0.07f else 0.03f),
-                        Color.White.copy(alpha = if (enabled) 0.02f else 0.01f),
-                    ),
-                ),
-            )
-            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(iconColor.copy(alpha = 0.18f * alpha)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor.copy(alpha = alpha),
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        Spacer(modifier = Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = Color.White.copy(alpha = alpha),
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp,
-            )
-            Text(
-                text = subtitle,
-                color = Color.White.copy(alpha = 0.40f * alpha),
-                fontSize = 12.sp,
-            )
-        }
-        Icon(
-            imageVector = Icons.Default.PlayArrow,
-            contentDescription = null,
-            tint = iconColor.copy(alpha = if (enabled) 0.6f else 0.2f),
-            modifier = Modifier.size(18.dp),
-        )
-    }
 }
 
 @Composable
@@ -610,16 +657,12 @@ private fun FeatureChip(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.02f)),
-                ),
-            )
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .background(Brush.linearGradient(listOf(Color.White.copy(0.06f), Color.White.copy(0.02f))))
+            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(16.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         Box(
             modifier = Modifier
@@ -628,25 +671,17 @@ private fun FeatureChip(
                 .background(iconColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(16.dp),
-            )
+            Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(16.dp))
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = subtitle,
-                color = Color.White.copy(alpha = 0.35f),
-                fontSize = 10.sp,
-            )
+            Text(title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = Color.White.copy(0.35f), fontSize = 10.sp)
         }
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Color.White.copy(0.22f),
+            modifier = Modifier.size(15.dp),
+        )
     }
 }

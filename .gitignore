@@ -5,7 +5,6 @@ npm-debug.log*
 
 # Secrets & sensitive data
 **/Secrets.kt
-**/Secrets.swift
 **/local.properties
 browser-cookies.json
 .env
@@ -21,14 +20,7 @@ replit.md
 .cache/
 attached_assets/
 
-# iOS / Xcode
-*.xcframework/
-.DS_Store
-xcuserdata/
-*.xcworkspace/
-CameraAccess/FastVLM/models/
-
-# Android
+# Android build artifacts
 *.apk
 *.aab
 *.class

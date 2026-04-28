@@ -19,15 +19,15 @@ This is a personal project, but pull requests are welcome.
 ## Project structure
 
 ```
-samples/CameraAccessAndroid/   # Android app
-samples/CameraAccess/server/   # Node.js server
-docker/                        # Docker deployment
+CameraAccessAndroid/   # Android app
+server/                # Node.js server
+docs/                  # Documentation assets
 ```
 
 ## Local development
 
-Android: Android Studio, see `samples/CameraAccessAndroid/README.md`  
-Server: `node samples/CameraAccess/server/index.js`
+Android: Android Studio, see `CameraAccessAndroid/README.md`  
+Server: `node server/index.js`
 
 ## Issues
 

@@ -58,13 +58,13 @@ Gemini Live API (WebSocket)
 git clone <repo-url>
 ```
 
-Open `samples/CameraAccessAndroid/` in Android Studio.
+Open `CameraAccessAndroid/` in Android Studio.
 
 ### 2. GitHub Packages (DAT SDK)
 
 The Meta DAT Android SDK is distributed via GitHub Packages. You need a token with `read:packages` scope.
 
-In `samples/CameraAccessAndroid/local.properties`:
+In `CameraAccessAndroid/local.properties`:
 
 ```properties
 gpr.user=YOUR_GITHUB_USERNAME
@@ -76,7 +76,7 @@ gpr.token=YOUR_GITHUB_TOKEN
 ### 3. App secrets
 
 ```bash
-cd samples/CameraAccessAndroid/app/src/main/java/.../cameraaccess/
+cd CameraAccessAndroid/app/src/main/java/.../cameraaccess/
 cp Secrets.kt.example Secrets.kt
 ```
 
@@ -111,7 +111,7 @@ Then in the app:
 
 ## Server (Node.js)
 
-The server lives in `samples/CameraAccess/server/` and starts automatically.
+The server lives in `server/` and starts automatically.
 
 Provides:
 - WebRTC signaling (ICE, SDP exchange)
@@ -129,22 +129,11 @@ Provides:
 | `ANTHROPIC_API_KEY` | Claude (for Telegram bot) |
 | `OPENAI_API_KEY` | OpenAI (optional) |
 
-### Docker deployment
-
-```bash
-cd docker
-cp .env.example .env
-# fill in .env
-docker-compose up -d
-```
-
-Starts: PostgreSQL + Signaling Server + Nginx-RTMP
-
 ---
 
 ## Architecture (Android)
 
-All source in `samples/CameraAccessAndroid/app/src/main/java/.../cameraaccess/`:
+All source in `CameraAccessAndroid/app/src/main/java/.../cameraaccess/`:
 
 | File | Purpose |
 |------|---------|

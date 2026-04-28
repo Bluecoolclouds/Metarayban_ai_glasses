@@ -1,26 +1,24 @@
-# VisionClaw
+# Smart Glasses
 
-A WebRTC signaling server and web viewer for Meta Ray-Ban Smart Glasses POV streaming, with AI assistant integration.
+Real-time AI assistant for Meta Ray-Ban smart glasses — Android app + Node.js server.
 
 ## Project Structure
 
 ```
-CameraAccess/
-├── CameraAccess/          # iOS app (Swift/SwiftUI + Meta DAT SDK)
-├── CameraAccessTests/     # iOS tests
-├── CameraAccess.xcodeproj # Xcode project
-└── server/                # Node.js signaling + AI server
-    ├── index.js           # Main server (WebRTC signaling, HTTP, WebSocket)
-    ├── ai-providers.js    # Multi-provider AI (Anthropic, OpenAI, Gemini)
-    ├── telegram-bot.js    # Telegram bot integration
-    ├── twitch-restreamer.js # Twitch RTMP streaming
-    ├── memory.js          # Persistent memory
-    ├── avito.js           # Avito scraping
-    ├── skills/            # AI skill modules
-    ├── public/            # Web frontend (index.html, settings.html, terminal.html)
-    └── package.json
+server/                    # Node.js signaling + AI server
+├── index.js               # Main server (WebRTC signaling, HTTP, WebSocket)
+├── ai-providers.js        # Multi-provider AI (Anthropic, OpenAI, Gemini)
+├── telegram-bot.js        # Telegram bot integration
+├── twitch-restreamer.js   # Twitch RTMP streaming
+├── memory.js              # Persistent memory
+├── avito.js               # Avito scraping
+├── skills/                # AI skill modules
+├── public/                # Web frontend (index.html, settings.html, terminal.html)
+└── package.json
 
 CameraAccessAndroid/       # Android app (Kotlin/Jetpack Compose + Meta DAT SDK)
+
+docs/                      # Documentation assets (screenshots)
 ```
 
 ## Tech Stack
@@ -29,12 +27,12 @@ CameraAccessAndroid/       # Android app (Kotlin/Jetpack Compose + Meta DAT SDK)
 - **Frontend**: Vanilla HTML/CSS/JS (served from `server/public/`)
 - **AI**: Anthropic Claude, OpenAI, Google Gemini
 - **Streaming**: WebRTC (peer-to-peer), RTMP (Twitch)
-- **Mobile**: iOS (Swift), Android (Kotlin)
+- **Mobile**: Android (Kotlin/Jetpack Compose)
 
 ## Running the Server
 
 ```bash
-cd CameraAccess/server
+cd server
 node index.js
 ```
 
@@ -52,4 +50,4 @@ Server runs on port 5000 (`0.0.0.0`).
 
 ## Workflow
 
-- **Start application**: `cd CameraAccess/server && node index.js` on port 5000
+- **Start application**: `cd server && node index.js` on port 5000

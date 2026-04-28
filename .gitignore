@@ -1,0 +1,40 @@
+# Node.js
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Secrets & sensitive data
+**/Secrets.kt
+**/Secrets.swift
+**/local.properties
+browser-cookies.json
+.env
+.env.*
+
+# Uploads & runtime data
+uploads/
+*.log
+
+# Replit
+replit.md
+.replit
+.cache/
+attached_assets/
+
+# iOS / Xcode
+*.xcframework/
+.DS_Store
+xcuserdata/
+*.xcworkspace/
+CameraAccess/FastVLM/models/
+
+# Android
+*.apk
+*.aab
+*.class
+*.dex
+build/
+.gradle/
+
+# Docker
+docker/.env

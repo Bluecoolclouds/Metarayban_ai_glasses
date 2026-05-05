@@ -97,6 +97,7 @@ fun StreamScreen(
     webrtcViewModel: WebRTCSessionViewModel = viewModel(),
 ) {
     val streamUiState by streamViewModel.uiState.collectAsStateWithLifecycle()
+    val videoBitmap by streamViewModel.videoFrame.collectAsStateWithLifecycle()
     val geminiUiState by geminiViewModel.uiState.collectAsStateWithLifecycle()
     val webrtcUiState by webrtcViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -293,7 +294,7 @@ fun StreamScreen(
         )
 
         // Video feed
-        streamUiState.videoFrame?.let { videoFrame ->
+        videoBitmap?.let { videoFrame ->
             Image(
                 bitmap = videoFrame.asImageBitmap(),
                 contentDescription = stringResource(R.string.live_stream),

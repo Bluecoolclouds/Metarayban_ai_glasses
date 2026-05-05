@@ -1,6 +1,9 @@
 package com.meta.wearable.dat.externalsampleapps.cameraaccess.server
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
@@ -30,6 +33,19 @@ class GlassesVideoStreamer(private val onChunk: (ByteArray) -> Unit) {
     private var encoderThread: Thread? = null
     private var outputThread: Thread? = null
 
+    private var pixelsBuf: IntArray? = null
+    private var nv12Buf: ByteArray? = null
+    private var bufW = 0
+    private var bufH = 0
+
+    private var scaledBitmap: Bitmap? = null
+    private val scaleCanvas: Canvas = Canvas()
+    private val scalePaint: Paint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val srcRect = Rect()
+    private val destRect = Rect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT)
+
+    private var droppedCount = 0L
+
     fun start() {
         val format = MediaFormat.createVideoFormat(
             MediaFormat.MIMETYPE_VIDEO_AVC,
@@ -58,7 +74,10 @@ class GlassesVideoStreamer(private val onChunk: (ByteArray) -> Unit) {
 
     fun sendFrame(bitmap: Bitmap) {
         if (!isRunning.get()) return
-        frameQueue.offer(bitmap)
+        if (!frameQueue.offer(bitmap)) {
+            droppedCount++
+            if (droppedCount % 30 == 0L) Log.w(TAG, "Frame queue full, dropped=$droppedCount")
+        }
     }
 
     fun stop() {
@@ -83,6 +102,15 @@ class GlassesVideoStreamer(private val onChunk: (ByteArray) -> Unit) {
         codec = null
         spsData = null
         ppsData = null
+
+        pixelsBuf = null
+        nv12Buf = null
+        bufW = 0
+        bufH = 0
+        scaledBitmap?.recycle()
+        scaledBitmap = null
+        droppedCount = 0L
+
         Log.d(TAG, "GlassesVideoStreamer stopped")
     }
 
@@ -103,13 +131,23 @@ class GlassesVideoStreamer(private val onChunk: (ByteArray) -> Unit) {
                     inputBuffer.clear()
 
                     val scaled = if (bitmap.width != VIDEO_WIDTH || bitmap.height != VIDEO_HEIGHT) {
-                        Bitmap.createScaledBitmap(bitmap, VIDEO_WIDTH, VIDEO_HEIGHT, false)
+                        var dst = scaledBitmap
+                        if (dst == null || dst.width != VIDEO_WIDTH || dst.height != VIDEO_HEIGHT) {
+                            dst?.recycle()
+                            dst = Bitmap.createBitmap(VIDEO_WIDTH, VIDEO_HEIGHT, Bitmap.Config.ARGB_8888)
+                            scaledBitmap = dst
+                            scaleCanvas.setBitmap(dst)
+                        }
+                        srcRect.set(0, 0, bitmap.width, bitmap.height)
+                        scaleCanvas.drawBitmap(bitmap, srcRect, destRect, scalePaint)
+                        dst
                     } else bitmap
 
+                    val yuvSize = scaled.width * scaled.height * 3 / 2
                     val yuv = bitmapToNv12(scaled)
-                    inputBuffer.put(yuv)
+                    inputBuffer.put(yuv, 0, yuvSize)
 
-                    encoder.queueInputBuffer(inputIndex, 0, yuv.size, ptsUs, 0)
+                    encoder.queueInputBuffer(inputIndex, 0, yuvSize, ptsUs, 0)
                     ptsUs += ptsDeltaUs
 
                 } catch (e: InterruptedException) {
@@ -225,10 +263,17 @@ class GlassesVideoStreamer(private val onChunk: (ByteArray) -> Unit) {
     private fun bitmapToNv12(bitmap: Bitmap): ByteArray {
         val width = bitmap.width
         val height = bitmap.height
-        val pixels = IntArray(width * height)
+
+        if (pixelsBuf == null || nv12Buf == null || bufW != width || bufH != height) {
+            pixelsBuf = IntArray(width * height)
+            nv12Buf = ByteArray(width * height * 3 / 2)
+            bufW = width
+            bufH = height
+        }
+        val pixels = pixelsBuf!!
+        val nv12 = nv12Buf!!
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
 
-        val nv12 = ByteArray(width * height * 3 / 2)
         var uvOffset = width * height
 
         for (row in 0 until height) {
